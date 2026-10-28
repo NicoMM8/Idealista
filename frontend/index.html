@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UMBRAL · Observatorio Multi-Portal de Vivienda Habitable ≤ 130.000 €</title>
+
+  <!-- Editorial & Technical Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Leaflet Interactive Cartography -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+
+  <!-- Custom Editorial Architectural Stylesheet -->
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+
+  <!-- ====================================================================
+       TOP EDITORIAL FOLIO BAR
+       ==================================================================== -->
+  <header class="folio-bar">
+    <div class="folio-left">
+      <span class="folio-dot"></span>
+      <span id="stat-portals-count">ÍNDICE NACIONAL REAL ACTIVO</span>
+      <span>·</span>
+      <span>BASE NACIONAL: <strong id="stat-national-cached">10.884 PISOS REALES</strong></span>
+    </div>
+    <div class="folio-center">
+      CUADERNO DE HABITABILIDAD REAL · EDICIÓN ESPAÑA Nº 02
+    </div>
+    <div class="folio-right">
+      <span>MEDIA ZONA: <strong id="stat-avg-price">112.000 €</strong> (<span id="stat-avg-sqm">1.540 €/m²</span>)</span>
+      <button class="folio-btn" id="btn-open-apikeys">🔑 API KEYS (OPCIONAL)</button>
+      <button class="folio-btn" id="btn-open-auditor">AUDITOR DE ENLACE / TEXTO ↗</button>
+    </div>
+  </header>
+
+  <!-- ====================================================================
+       MASTHEAD & THREE.JS ARCHITECTURAL AXONOMETRIC STAGE
+       ==================================================================== -->
+  <section class="masthead-grid">
+    <!-- Left Column: Editorial Manifesto & Multi-Portal Search Console -->
+    <div class="masthead-editorial">
+      <div>
+        <div class="kicker-line">ANUNCIOS 100% REALES EN TODA ESPAÑA · FILTRADO AUTOMÁTICO POR ENCUADRE Y DIBUJO LIBRE</div>
+        <h1 class="masthead-title">
+          Vivienda para <em>habitar</em>,<br />
+          no para fondos ni subastas.
+        </h1>
+        <p class="masthead-lead">
+          Extracción real en vivo sobre <strong>Fotocasa, Pisos.com, Habitaclia, Trovimap, Tecnocasa, Redpiso, Housfy y Solvia/Servihabitat</strong> + conectores directos a los 12 portales españoles.
+          Amplía o aléjate hasta ver el <strong>mapa completo de España</strong>, o <strong>dibuja una figura a mano alzada</strong> sobre tus barrios preferidos.
+        </p>
+
+        <!-- 4 Strict Architectural & Legal Pillars -->
+        <div class="manifesto-rules-strip">
+          <div class="rule-pillar">
+            <span class="rule-pillar-num">REGLA 01 // PRECIO</span>
+            <div class="rule-pillar-title">130.000 € (Ampliable)</div>
+            <div class="rule-pillar-desc">130k € por defecto, regulable hasta 500.000 € según tu presupuesto.</div>
+          </div>
+          <div class="rule-pillar">
+            <span class="rule-pillar-num">REGLA 02 // POSESIÓN</span>
+            <div class="rule-pillar-title">Cero Ocupados</div>
+            <div class="rule-pillar-desc">Sin okupas, sin cesión de remate ni procesos judiciales.</div>
+          </div>
+          <div class="rule-pillar">
+            <span class="rule-pillar-num">REGLA 03 // VIVIENDA REAL</span>
+            <div class="rule-pillar-title">Pleno Dominio</div>
+            <div class="rule-pillar-desc">Vetados locales comerciales sin empadronamiento, nuda propiedad e inquilinos.</div>
+          </div>
+          <div class="rule-pillar">
+            <span class="rule-pillar-num">REGLA 04 // COTA VERTICAL</span>
+            <div class="rule-pillar-title">Ascensor, 1º o Bajo</div>
+            <div class="rule-pillar-desc">Con ascensor en toda altura, o Bajo / 1ª planta sin ascensor.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Search Console Box -->
+      <div class="search-console">
+        <div class="search-row-primary">
+          <div class="field-group">
+            <label class="field-label" for="city-search-input">Municipio, Ciudad, Provincia o "España"</label>
+            <input
+              type="text"
+              id="city-search-input"
+              class="input-editorial"
+              value="España"
+              placeholder="Escribe cualquier municipio o 'España' para ver todo el mapa nacional..."
+            />
+          </div>
+
+          <div class="field-group">
+            <div class="price-slider-wrap">
+              <div class="price-slider-header">
+                <span>PRECIO MÍNIMO (AVAL ICO / CATASTRO)</span>
+                <span class="val" id="min-price-display" style="color:var(--moss);">0 € (Sin mín.)</span>
+              </div>
+              <input
+                type="range"
+                id="min-price-slider"
+                class="editorial-range"
+                min="0"
+                max="350000"
+                step="5000"
+                value="0"
+              />
+              <div class="ico-presets-row">
+                <button type="button" class="ico-preset-btn active" data-min-price="0">Sin mín. (0 €)</button>
+                <button type="button" class="ico-preset-btn" data-min-price="75000" title="Venta desde 75k € que aún puede tener Valor de Referencia Catastral ≥ 100k €">≥ 75k € (Venta &lt; Catastro)</button>
+                <button type="button" class="ico-preset-btn" data-min-price="100000" title="Precio de venta ≥ 100.000 € (umbral Aval ICO)">🏛️ ≥ 100k € (Aval ICO)</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <div class="price-slider-wrap">
+              <div class="price-slider-header">
+                <span>PRESUPUESTO MÁXIMO (130K DEFECTO · HASTA 500K)</span>
+                <span class="val" id="max-price-display">130.000 €</span>
+              </div>
+              <input
+                type="range"
+                id="max-price-slider"
+                class="editorial-range"
+                min="40000"
+                max="500000"
+                step="5000"
+                value="130000"
+              />
+            </div>
+          </div>
+
+          <button class="btn-execute-search" id="btn-run-search">
+            BUSCAR Y ENCUADRAR MAPA
+          </button>
+        </div>
+
+        <div class="quick-cities-strip">
+          <span class="quick-cities-label">Escala geográfica:</span>
+          <button class="city-chip active" data-city="España">🇪🇸 TODA ESPAÑA</button>
+          <button class="city-chip" data-city="Valencia">Valencia</button>
+          <button class="city-chip" data-city="Madrid">Madrid</button>
+          <button class="city-chip" data-city="Alicante">Alicante</button>
+          <button class="city-chip" data-city="Sevilla">Sevilla</button>
+          <button class="city-chip" data-city="Zaragoza">Zaragoza</button>
+          <button class="city-chip" data-city="Málaga">Málaga</button>
+          <button class="city-chip" data-city="Murcia">Murcia</button>
+          <button class="city-chip" data-city="Granada">Granada</button>
+          <button class="city-chip" data-city="Barcelona">Barcelona</button>
+          <button class="city-chip" data-city="Valladolid">Valladolid</button>
+          <button class="city-chip" data-city="Córdoba">Córdoba</button>
+          <button class="city-chip" data-city="Gijón">Gijón</button>
+          <button class="city-chip" data-city="Vigo">Vigo</button>
+          <button class="city-chip" data-city="A Coruña">A Coruña</button>
+          <button class="city-chip" data-city="Castellón">Castellón</button>
+          <button class="city-chip" data-city="Almería">Almería</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Interactive Three.js Architectural Section Model -->
+    <div class="masthead-three-stage">
+      <div id="three-architectural-canvas"></div>
+
+      <div class="three-hud-top">
+        <div class="three-blueprint-badge" id="three-active-callout">
+          <strong>SECCIÓN AXONOMÉTRICA 3D · ARRASTRA PARA ROTAR</strong>
+          Pasa el cursor sobre cualquier vivienda o pin del mapa para iluminar su planta real y el núcleo de ascensor.
+        </div>
+
+        <div class="three-sun-control">
+          <div style="display:flex;justify-content:space-between;gap:12px;">
+            <span>ASOLEAMIENTO</span>
+            <strong id="sun-hour-label" style="color:var(--terracotta);">13:30 SOLAR</strong>
+          </div>
+          <input
+            type="range"
+            id="sun-hour-slider"
+            class="editorial-range"
+            min="8"
+            max="20"
+            step="0.5"
+            value="13.5"
+          />
+        </div>
+      </div>
+
+      <div class="three-hud-bottom">
+        <span style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;color:var(--ink-secondary);">
+          FILTRAR POR SECCIÓN 3D:
+        </span>
+        <div class="floor-selector-group">
+          <button class="floor-3d-btn active" data-section="all">
+            TODAS LAS APTAS (<span id="count-3d-all">0</span>)
+          </button>
+          <button class="floor-3d-btn" data-section="ground">
+            BAJOS COTA 0 (<span id="count-3d-ground">0</span>)
+          </button>
+          <button class="floor-3d-btn" data-section="first_floor_walkup">
+            1º SIN ASCENSOR (<span id="count-3d-first">0</span>)
+          </button>
+          <button class="floor-3d-btn" data-section="elevator">
+            CON ASCENSOR (<span id="count-3d-elevator">0</span>)
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====================================================================
+       12-PORTAL TELEMETRY MATRIX
+       ==================================================================== -->
+  <section class="portals-telemetry-section">
+    <div class="portals-header-bar">
+      <div class="portals-title-group">
+        <span class="portals-title">PORTALES INMOBILIARIOS EN EL ENCUADRE ACTUAL (<span id="stat-city-name">TODA ESPAÑA</span>)</span>
+        <span class="portals-subtitle">Clic en tarjeta para filtrar por portal · Clic en "ABRIR PORTAL ↗" para ir a la web del portal</span>
+      </div>
+    </div>
+    <div class="portals-grid" id="portals-matrix-grid">
+      <!-- Populated dynamically by app.js -->
+    </div>
+  </section>
+
+  <!-- ====================================================================
+       NLP ANTI-TRAP SHIELD BAR
+       ==================================================================== -->
+  <section class="filter-shield-bar">
+    <div class="shield-tags-wrap">
+      <span class="shield-label">ESCUDO LÉXICO ACTIVO:</span>
+      <span class="exclusion-pill">✕ "ocupado / okupa / sin posesión"</span>
+      <span class="exclusion-pill">✕ "nuda / nula propiedad / usufructo"</span>
+      <span class="exclusion-pill">✕ "alquilado / con inquilino / renta"</span>
+      <span class="exclusion-pill">✕ "para inversores / subasta / cesión"</span>
+      <span class="exclusion-pill">✕ "local comercial / no es vivienda / sin empadronamiento"</span>
+      <span class="exclusion-pill">✕ "2º o superior sin ascensor"</span>
+      <span id="custom-excluded-pills" style="display:inline-flex;gap:6px;flex-wrap:wrap;"></span>
+
+      <span class="inclusion-pill" id="pill-toggle-first-floor" title="Clic para activar/desactivar 1º sin ascensor">
+        ✓ Admitir 1ª Planta sin ascensor
+      </span>
+      <span class="inclusion-pill" id="pill-toggle-ground" title="Clic para activar/desactivar Bajos">
+        ✓ Admitir Planta Baja
+      </span>
+      <span class="inclusion-pill" id="pill-toggle-occupied" style="cursor:pointer;" title="Clic para permitir o vetar inmuebles sin posesión / ocupados">
+        ✕ Vetar Inmuebles sin posesión
+      </span>
+    </div>
+
+    <div class="custom-word-form">
+      <input
+        type="text"
+        id="input-custom-word"
+        class="custom-word-input"
+        placeholder="+ Vetar otra palabra..."
+      />
+      <button class="btn-small-mono" id="btn-add-excluded-word">VETAR TÉRMINO</button>
+    </div>
+  </section>
+
+  <!-- ====================================================================
+       MAIN WORKSPACE: CATALOG DOSSIERS (LEFT) + CARTOGRAPHY (RIGHT)
+       ==================================================================== -->
+  <main class="workspace-split">
+    <!-- Left Column: Property Cards & Filter Transparency Ledger -->
+    <div class="catalog-column">
+      <div class="catalog-toolbar">
+        <div class="view-mode-tabs">
+          <button class="tab-mode-btn active" id="tab-approved">
+            PISOS REALES APTOS EN MAPA
+            <span class="count-badge" id="stat-approved-count">0</span>
+          </button>
+          <button class="tab-mode-btn rejected-tab" id="tab-rejected">
+            DESCARTADOS EN MAPA (OCUPADOS / NUDA / SIN ASCENSOR)
+            <span class="count-badge" id="stat-rejected-count">0</span>
+          </button>
+        </div>
+
+        <div class="catalog-filters-right">
+          <label for="sort-select" style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-muted);">
+            ORDEN:
+          </label>
+          <select id="sort-select" class="select-editorial">
+            <option value="score">Índice de Habitabilidad (Mayor a menor)</option>
+            <option value="price_asc">Precio más bajo primero</option>
+            <option value="price_sqm_asc">Precio por m² más económico</option>
+            <option value="sqm_desc">Mayor superficie (m²)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="listings-grid" id="listings-grid">
+        <!-- Populated dynamically by app.js -->
+      </div>
+    </div>
+
+    <!-- Right Column: Sticky Interactive Cartographic Map with Freehand Draw & Viewport Sync -->
+    <aside class="map-column">
+      <div class="map-topbar">
+        <div>
+          <strong>MAPA INTERACTIVO DE ESPAÑA</strong> · <span id="map-pins-counter">0 VIVIENDAS EN PANTALLA</span>
+        </div>
+        <div class="map-toggle-controls">
+          <label style="cursor:pointer;display:flex;align-items:center;gap:5px;" title="Al hacer zoom o mover el mapa, se actualizan los pisos de la izquierda automáticamente">
+            <input type="checkbox" id="chk-sync-viewport" checked />
+            <span>Filtrar al mover/ampliar mapa</span>
+          </label>
+          <span>|</span>
+          <label style="cursor:pointer;display:flex;align-items:center;gap:5px;">
+            <input type="checkbox" id="chk-map-rejected" />
+            <span>Ver descartados</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Idealista-style Freehand Polygon Draw & Spain Zoom Toolbar -->
+      <div class="map-draw-toolbar">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+          <button class="btn-map-tool spain-btn" id="btn-zoom-spain" title="Desampliar del todo para ver todos los pisos de España">
+            🇪🇸 VER MAPA DE TODA ESPAÑA
+          </button>
+          <button class="btn-map-tool" id="btn-draw-polygon" title="Dibuja a mano alzada con el ratón la zona exacta donde quieres buscar">
+            ✏️ DIBUJAR ZONA A MANO ALZADA (COMO IDEALISTA)
+          </button>
+          <button class="btn-map-tool" id="btn-deep-scrape-zone" style="background:var(--ochre);color:#fff;" title="Extrae más páginas en vivo de Fotocasa y Pisos.com para la provincia que estás viendo en el mapa">
+            ⚡ EXTRAER MÁS PÁGINAS DE ESTA ZONA
+          </button>
+          <button class="btn-map-tool" id="btn-clear-polygon" style="display:none;background:var(--danger-crimson);color:#fff;">
+            ✕ BORRAR FIGURA DIBUJADA
+          </button>
+        </div>
+        <span id="draw-status-hint" style="font-family:var(--font-mono);font-size:10px;color:var(--terracotta);font-weight:600;">
+          Amplía o aleja el mapa: la lista muestra lo que ves en pantalla
+        </span>
+      </div>
+
+      <div id="interactive-map"></div>
+
+      <div class="map-bottom-legend">
+        <div class="legend-items">
+          <span><i class="legend-swatch" style="background:var(--ink-primary)"></i>Piso Real Apto ≤ 130k €</span>
+          <span><i class="legend-swatch" style="background:var(--terracotta)"></i>Agrupación / Figura Dibujada</span>
+          <span><i class="legend-swatch" style="background:var(--danger-crimson)"></i>Descartado por Filtro</span>
+        </div>
+        <span>CLIC EN CUALQUIER PISO PARA ABRIR SU ANUNCIO REAL ↗</span>
+      </div>
+    </aside>
+  </main>
+
+  <!-- ====================================================================
+       MODAL 1: EXPEDIENTE ARQUITECTÓNICO DE LA VIVIENDA REAL
+       ==================================================================== -->
+  <div class="modal-backdrop" id="dossier-backdrop">
+    <div class="dossier-modal" id="dossier-modal-content"></div>
+  </div>
+
+  <!-- ====================================================================
+       MODAL 2: AUDITOR EN VIVO DE CUALQUIER ENLACE O TEXTO DE ANUNCIO
+       ==================================================================== -->
+  <div class="modal-backdrop" id="auditor-backdrop">
+    <div class="dossier-modal" style="max-width:680px;">
+      <div class="dossier-modal-header">
+        <span>AUDITOR EN VIVO DE ANUNCIOS · DETECTOR DE TRAMPAS Y EXTRACTOR HD</span>
+        <button class="btn-close-modal" id="btn-close-auditor">CERRAR</button>
+      </div>
+      <div style="padding:24px;display:flex;flex-direction:column;gap:14px;">
+        <p style="font-size:14px;color:var(--ink-secondary);">
+          Pega el enlace de cualquier piso (Idealista, Fotocasa, Pisos.com, Habitaclia, etc.) o su descripción para verificar al instante si oculta cláusulas de <em>nuda propiedad, alquiler vigente, ocupación sin posesión o planta alta sin ascensor</em>.
+        </p>
+
+        <div class="field-group">
+          <label class="field-label">URL del anuncio (opcional)</label>
+          <input type="text" id="audit-url-input" class="input-editorial" placeholder="https://www.fotocasa.es/es/comprar/vivienda/..." />
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">Precio anunciado (€)</label>
+          <input type="number" id="audit-price-input" class="input-editorial" value="115000" />
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">Texto o descripción del anuncio a auditar</label>
+          <textarea
+            id="audit-text-input"
+            class="input-editorial"
+            rows="4"
+          >Piso en primera planta sin ascensor, exterior con balcón, 3 dormitorios, libre de cargas y entrega inmediata de llaves.</textarea>
+        </div>
+
+        <button class="btn-execute-search" id="btn-run-live-audit">
+          EJECUTAR AUDITORÍA DE HABITABILIDAD
+        </button>
+
+        <div id="audit-live-result"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================================
+       MODAL 3: CONFIGURACIÓN OPCIONAL DE API KEYS (IDEALISTA OAUTH2)
+       ==================================================================== -->
+  <div class="modal-backdrop" id="apikeys-backdrop">
+    <div class="dossier-modal" style="max-width:640px;">
+      <div class="dossier-modal-header">
+        <span>CONEXIÓN DE PORTALES Y CREDENCIALES API (OPCIONAL)</span>
+        <button class="btn-close-modal" id="btn-close-apikeys">CERRAR</button>
+      </div>
+      <div style="padding:24px;display:flex;flex-direction:column;gap:14px;">
+        <div style="background:var(--moss-soft);border-left:3px solid var(--moss);padding:12px;font-size:13.5px;">
+          <strong>✓ NO NECESITAS PASAR NINGUNA API KEY PARA USAR LA WEB:</strong><br />
+          El motor ya extrae <strong>más de 2.100 anuncios 100% reales con fotos, coordenadas y enlaces directos</strong> desde <strong>Fotocasa, Habitaclia y Pisos.com</strong> en toda España de forma automática sin clave.
+        </div>
+
+        <p style="font-size:13.5px;color:var(--ink-secondary);">
+          <strong>Opcional — API Oficial de Idealista (OAuth2):</strong> Idealista protege su web con DataDome, pero ofrece credenciales gratuitas de desarrollador en <code>developers.idealista.com</code>. Si tienes un <em>API Key</em> y <em>Secret</em> de Idealista, puedes introducirlos aquí para fusionar también sus anuncios por API oficial:
+        </p>
+
+        <div class="field-group">
+          <label class="field-label">Idealista API Key (Opcional)</label>
+          <input type="text" id="input-idealista-key" class="input-editorial" placeholder="Tu API Key de Idealista..." />
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">Idealista Secret (Opcional)</label>
+          <input type="password" id="input-idealista-secret" class="input-editorial" placeholder="Tu Secret de Idealista..." />
+        </div>
+
+        <button class="btn-execute-search" id="btn-save-apikeys">
+          GUARDAR CREDENCIALES OPCIONALES
+        </button>
+        <div id="apikeys-status-msg" style="font-family:var(--font-mono);font-size:11px;color:var(--moss);"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts: Three.js r128, Leaflet 1.9.4, Architectural 3D Scene, App Controller -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="/static/three_scene.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>
