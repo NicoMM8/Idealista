@@ -55,13 +55,22 @@ function initMap() {
   L.control.zoom({ position: "bottomright" }).addTo(state.map);
 
   // 100% Free, Zero-API-Key Map Layers:
-  // 1. OpenStreetMap Standard (warmed with editorial CSS filter)
+  // 1. Esri World Street Map (Ultra-fast CDN, zero rate-limits, rock-solid)
+  const esriStreetLayer = L.tileLayer(
+    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+    {
+      attribution: "&copy; Esri, DeLorme, NAVTEQ",
+      maxZoom: 19,
+    }
+  );
+
+  // 2. OpenStreetMap Standard (warmed with editorial CSS filter)
   const osmLayer = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     maxZoom: 19,
   });
 
-  // 2. Cartografía Oficial IGN España (Instituto Geográfico Nacional)
+  // 3. Cartografía Oficial IGN España (Instituto Geográfico Nacional)
   const ignSpainLayer = L.tileLayer(
     "https://www.ign.es/wmts/ign-base?request=GetTile&service=WMTS&Version=1.0.0&Layer=IGNBaseTodo&Style=default&Format=image/jpeg&TileMatrixSet=GoogleMapsCompatible&TileMatrix={z}&TileRow={y}&TileCol={x}",
     {
@@ -70,7 +79,7 @@ function initMap() {
     }
   );
 
-  // 3. Esri Topográfico / Callejero
+  // 4. Esri Topográfico Arquitectónico
   const esriTopoLayer = L.tileLayer(
     "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
     {
@@ -79,7 +88,7 @@ function initMap() {
     }
   );
 
-  // 4. Vista Satélite Real (Esri World Imagery)
+  // 5. Vista Satélite Real (Esri World Imagery)
   const esriSatLayer = L.tileLayer(
     "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
     {
@@ -88,12 +97,13 @@ function initMap() {
     }
   );
 
-  osmLayer.addTo(state.map);
+  esriStreetLayer.addTo(state.map);
 
   L.control
     .layers(
       {
-        "Callejero Editorial (OSM)": osmLayer,
+        "Callejero Editorial (Esri CDN)": esriStreetLayer,
+        "OpenStreetMap": osmLayer,
         "Cartografía Oficial IGN España": ignSpainLayer,
         "Topográfico Arquitectónico": esriTopoLayer,
         "Satélite Real": esriSatLayer,
@@ -104,6 +114,13 @@ function initMap() {
     .addTo(state.map);
 
   state.markersLayer = L.layerGroup().addTo(state.map);
+
+  // Robust sizing so map tiles are always 100% visible
+  setTimeout(() => { if (state.map) state.map.invalidateSize(); }, 250);
+  setTimeout(() => { if (state.map) state.map.invalidateSize(); }, 1000);
+  window.addEventListener("resize", () => {
+    if (state.map) state.map.invalidateSize();
+  });
 
   // Real-time Viewport Sync when user zooms in/out or pans the map
   state.map.on("moveend zoomend", () => {
@@ -772,16 +789,43 @@ function renderPortalsMatrixForView(spatialApproved, spatialRejected) {
       const isSelected = state.selectedPortalId === p.id;
       const okC = okByPortal[p.id] || 0;
       const badC = badByPortal[p.id] || 0;
-      const isLauncherOnly = DIRECT_LAUNCHER_IDS.has(p.id) && okC === 0 && badC === 0;
-      const metricsHtml = isLauncherOnly
-        ? `<div class="portal-metrics"><span style="color:var(--ink-secondary);font-size:9.5px;">🔒 PROTECCIÓN ANTI-BOT · PULSA "ABRIR PORTAL ↗"</span></div>`
-        : `<div class="portal-metrics">
+      const isLauncher = DIRECT_LAUNCHER_IDS.has(p.id);
+
+      if (isLauncher) {
+        const securityLabel = p.id === "idealista" ? "API OAUTH2 · ENLACE DIRECTO" : "LANZADOR DIRECTO PREFILTRADO";
+        return `
+        <div class="portal-card launcher-card" data-portal-id="${p.id}" title="Protegido por DataDome anti-bot: haz clic para abrir la búsqueda prefiltrada directamente en nueva pestaña">
+          <div class="portal-card-top">
+            <span class="portal-name">
+              <span class="portal-color-pip" style="background:${p.badge_color}"></span>
+              ${escapeHtml(p.name)}
+            </span>
+            <a href="${escapeHtml(p.search_url)}" target="_blank" rel="noopener" class="portal-direct-link" onclick="event.stopPropagation()">
+              ABRIR FILTRADO ↗
+            </a>
+          </div>
+          <div style="font-family:var(--font-mono);font-size:9px;color:var(--ink-muted)">
+            ${securityLabel}
+          </div>
+          <div class="portal-metrics">
+            <span class="portal-launcher-tag">🛡️ DATADOME · CLIC PARA ABRIR ↗</span>
+          </div>
+        </div>
+      `;
+      }
+
+      const hasActivity = okC > 0 || badC > 0;
+      const metricsHtml = hasActivity
+        ? `<div class="portal-metrics">
             <span class="portal-ok">✓ ${okC} EN MAPA</span>
             <span class="portal-blocked">✕ ${badC} FILTRADOS</span>
+          </div>`
+        : `<div class="portal-metrics">
+            <span class="portal-muted">0 en este encuadre (activo en el país)</span>
           </div>`;
 
       return `
-      <div class="portal-card ${isSelected ? "selected-filter" : ""}" data-portal-id="${p.id}">
+      <div class="portal-card ${isSelected ? "selected-filter" : ""}" data-portal-id="${p.id}" title="Clic para filtrar las viviendas de este portal en la lista">
         <div class="portal-card-top">
           <span class="portal-name">
             <span class="portal-color-pip" style="background:${p.badge_color}"></span>
@@ -803,6 +847,13 @@ function renderPortalsMatrixForView(spatialApproved, spatialRejected) {
   container.querySelectorAll(".portal-card").forEach((card) => {
     card.addEventListener("click", () => {
       const pid = card.getAttribute("data-portal-id");
+      if (DIRECT_LAUNCHER_IDS.has(pid)) {
+        const directLink = card.querySelector(".portal-direct-link");
+        if (directLink && directLink.href) {
+          window.open(directLink.href, "_blank", "noopener");
+        }
+        return;
+      }
       state.selectedPortalId = state.selectedPortalId === pid ? null : pid;
       state.currentLimit = state.pageSize;
       refreshViewportFilteredUI();

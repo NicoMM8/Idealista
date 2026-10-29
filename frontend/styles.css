@@ -618,6 +618,31 @@ input[type="range"].editorial-range::-webkit-slider-thumb {
   color: var(--danger-crimson);
 }
 
+.portal-card.launcher-card {
+  background: rgba(243, 239, 230, 0.6);
+  border: 1px dashed rgba(184, 74, 50, 0.4);
+}
+
+.portal-card.launcher-card:hover {
+  background: #fff;
+  border-color: var(--terracotta);
+}
+
+.portal-launcher-tag {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  text-transform: uppercase;
+  color: var(--terracotta);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.portal-muted {
+  color: var(--ink-muted);
+  font-size: 9.5px;
+  font-style: italic;
+}
+
 /* ==========================================================================
    FILTER SHIELD & EXCLUSION MATRIX BAR
    ========================================================================== */

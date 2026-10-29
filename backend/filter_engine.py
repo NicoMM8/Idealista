@@ -104,6 +104,13 @@ SAFE_CONTEXT_PATTERNS = [
     r"no\s+es\s+nuda\s+propiedad",
 ]
 
+EXPLICIT_WALKUP_PAT = (
+    r"\b(segund[oa]|tercer[oa]|cuart[oa]|quint[oa]|sext[oa]|[2-9][ºªo]?)\s+(planta|piso)\b[^\.\n;]{0,60}\b(sin\s+ascensor|no\s+tiene\s+ascensor|no\s+dispone\s+de\s+ascensor)\b"
+    r"|\b(sin\s+ascensor|no\s+tiene\s+ascensor|no\s+dispone\s+de\s+ascensor)\b[^\.\n;]{0,60}\b(segund[oa]|tercer[oa]|cuart[oa]|quint[oa]|sext[oa]|[2-9][ºªo]?)\s+(planta|piso)\b"
+    r"|\b(segund[oa]|tercer[oa]|cuart[oa]|quint[oa]|[2-9][ºªo]?)\s+(sin\s+ascensor|no\s+tiene\s+ascensor|no\s+dispone\s+de\s+ascensor)\b"
+    r"|\bplanta\s+([2-9]|segunda|tercera|cuarta|quinta)\b[^\.\n;]{0,50}\b(sin\s+ascensor|no\s+tiene\s+ascensor|no\s+dispone\s+de\s+ascensor)\b"
+)
+
 
 def extract_floor_and_elevator(
     title: str,
@@ -115,6 +122,30 @@ def extract_floor_and_elevator(
     combined = f"{title} {description} {' '.join(str(f) for f in (features or []))}"
     clean = strip_accents(combined)
     floor_str = strip_accents(str(raw_floor if raw_floor is not None else ""))
+
+    # PRIORITY 1: Check for explicit 2nd floor or higher walkup in text.
+    # Agencies often fraudulently label listings as 'Planta baja' or '1ª planta' in portal metadata,
+    # but confess 'segunda planta de un edificio sin ascensor' in the text body.
+    # This explicit statement must override metadata completely!
+    m_walkup = re.search(EXPLICIT_WALKUP_PAT, clean)
+    if m_walkup:
+        matched_str = m_walkup.group(0)
+        floor_num = 2
+        if any(w in matched_str for w in ["tercer", "3", "3ª", "3º"]):
+            floor_num = 3
+        elif any(w in matched_str for w in ["cuart", "4", "4ª", "4º"]):
+            floor_num = 4
+        elif any(w in matched_str for w in ["quint", "5", "5ª", "5º"]):
+            floor_num = 5
+        elif any(w in matched_str for w in ["sext", "6", "6ª", "6º"]):
+            floor_num = 6
+        return {
+            "floor_num": floor_num,
+            "floor_label": f"{floor_num}ª Planta",
+            "has_elevator": False,
+            "elevator_explicit": True,
+            "explicit_walkup_match": matched_str,
+        }
 
     has_elevator: Optional[bool] = raw_elevator
     if (
@@ -192,6 +223,13 @@ def extract_floor_and_elevator(
             elif re.search(r"\b(casa\s+de\s+pueblo|casa\s+baja|casa\s+en\s+venta|chalet|adosado|planta\s+unica|duplex)\b", clean):
                 floor_num = 0
                 floor_label = "Bajo / Casa"
+
+    return {
+        "floor_num": floor_num,
+        "floor_label": floor_label,
+        "has_elevator": bool(has_elevator) if has_elevator is not None else False,
+        "elevator_explicit": has_elevator is not None,
+    }
 
     return {
         "floor_num": floor_num,
@@ -293,7 +331,24 @@ def evaluate_listing(
     accessibility_badge = ""
     accessibility_mode = ""
 
-    if has_elevator:
+    if vertical.get("explicit_walkup_match"):
+        matched_str = vertical["explicit_walkup_match"]
+        idx = clean_text.find(matched_str)
+        if idx != -1:
+            start = max(0, idx - 25)
+            end = min(len(full_text), idx + len(matched_str) + 25)
+            snippet = full_text[start:end].strip()
+        else:
+            snippet = matched_str
+        accessibility_ok = False
+        accessibility_badge = f"{floor_label.upper()} · SIN ASCENSOR"
+        rejections.append({
+            "category": "ALTURA SIN ASCENSOR",
+            "reason": f"El texto del anuncio indica expresamente {floor_label} sin ascensor (solo se admite Bajo, 1º sin ascensor, o con ascensor)",
+            "matched_term": matched_str,
+            "snippet": f"«...{snippet}...»",
+        })
+    elif has_elevator:
         accessibility_ok = True
         fl_txt = floor_label.upper() if floor_num is not None else "CON ASCENSOR"
         accessibility_badge = f"{fl_txt} · CON ASCENSOR" if "ASCENSOR" not in fl_txt else fl_txt
