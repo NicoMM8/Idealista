@@ -1,10 +1,14 @@
 /**
- * UMBRAL BRIDGE · EXTENSIÓN CONECTORA MULTI-PORTAL
- * Captura viviendas en Idealista, Yaencontre e Indomio mientras navegas
- * y las envía a tu observatorio UMBRAL para filtrarlas y verlas en el mapa.
+ * UMBRAL BRIDGE · EXTENSIÓN CONECTORA MULTI-PORTAL (v2.0)
+ * Totalmente aislada con Shadow DOM para no interferir con Idealista ni DataDome.
+ * Cero bloqueos de CPU y sincronización limpia en segundo plano.
  */
 
 (function () {
+  // Evitar inyección múltiple
+  if (window.__UMBRAL_BRIDGE_INITIALIZED__) return;
+  window.__UMBRAL_BRIDGE_INITIALIZED__ = true;
+
   const STORAGE_KEY_URL = "umbral_bridge_backend_url";
   const STORAGE_KEY_AUTOSYNC = "umbral_bridge_autosync";
 
@@ -12,7 +16,9 @@
   let autoSync = localStorage.getItem(STORAGE_KEY_AUTOSYNC) === "true";
 
   const capturedListings = new Map();
-  let syncTimeout = null;
+  let lastCountScanned = 0;
+  let syncDebounceTimer = null;
+  let shadowRoot = null;
 
   function getPortalType() {
     const host = window.location.hostname;
@@ -47,6 +53,7 @@
   function parseIdealistaCards() {
     const city = detectCity();
     const articles = document.querySelectorAll("article.item, article[data-adid]");
+    if (articles.length === 0) return;
 
     articles.forEach((art) => {
       const adId = art.getAttribute("data-adid") || art.getAttribute("id") || "";
@@ -123,25 +130,62 @@
     });
   }
 
-  function scanCurrentPage() {
-    const portal = getPortalType();
-    if (portal === "idealista") {
-      parseIdealistaCards();
-    }
-    updateHUD();
+  function parseYaencontreCards() {
+    const city = detectCity();
+    const cards = document.querySelectorAll("article, div[class*='listing-card'], div[data-testid*='card']");
+    cards.forEach((card) => {
+      const link = card.querySelector("a[href*='/inmueble/'], a[href*='/venta/']");
+      const priceEl = card.querySelector("[class*='price'], [data-testid*='price']");
+      if (!link || !priceEl) return;
+      const priceNum = parseInt(priceEl.innerText.replace(/[^\d]/g, ""), 10) || 0;
+      if (priceNum <= 0) return;
+      const url = link.href;
+      const idMatch = url.match(/\/(\d+)\/?$/);
+      const adId = idMatch ? idMatch[1] : `ye-${Math.abs(hash(url))}`;
+      const title = link.innerText.trim() || `Piso en venta en ${city}`;
 
-    if (autoSync) {
-      if (syncTimeout) clearTimeout(syncTimeout);
-      syncTimeout = setTimeout(sendListingsToUmbral, 1500);
+      capturedListings.set(`ye-${adId}`, {
+        id: `ye-${adId}`,
+        portal_id: "yaencontre",
+        title: title,
+        price: priceNum,
+        sqm: 70,
+        rooms: 2,
+        url: url,
+        city: city,
+        neighborhood: title,
+      });
+    });
+  }
+
+  function scanCurrentPage() {
+    try {
+      const portal = getPortalType();
+      if (portal === "idealista") {
+        parseIdealistaCards();
+      } else if (portal === "yaencontre") {
+        parseYaencontreCards();
+      }
+
+      updateHUD();
+
+      if (autoSync && capturedListings.size > lastCountScanned) {
+        lastCountScanned = capturedListings.size;
+        if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
+        syncDebounceTimer = setTimeout(sendListingsToUmbral, 1800);
+      }
+    } catch (e) {
+      console.warn("[UMBRAL BRIDGE] Scan notice:", e);
     }
   }
 
   async function sendListingsToUmbral() {
     if (capturedListings.size === 0) return;
+    if (!shadowRoot) return;
 
-    const btn = document.getElementById("umbral-hud-sync-btn");
-    const msg = document.getElementById("umbral-hud-msg");
-    const urlInput = document.getElementById("umbral-hud-backend-url");
+    const btn = shadowRoot.getElementById("umbral-hud-sync-btn");
+    const msg = shadowRoot.getElementById("umbral-hud-msg");
+    const urlInput = shadowRoot.getElementById("umbral-hud-backend-url");
     const targetUrl = (urlInput ? urlInput.value.trim() : defaultBackend) || "http://localhost:8050";
 
     if (btn) {
@@ -163,114 +207,262 @@
 
       if (msg) {
         msg.style.display = "block";
-        msg.innerHTML = `✓ <strong>${data.imported} pisos importados</strong> (${data.approved} aptos en mapa / ${data.rejected} filtrados). <br><a href="${targetUrl}" target="_blank" style="color:#264636;font-weight:700;text-decoration:underline;">Abrir Umbral ↗</a>`;
+        msg.style.background = "#E6EFEA";
+        msg.style.color = "#264636";
+        msg.style.borderLeftColor = "#264636";
+        msg.innerHTML = `✓ <strong>${data.imported} pisos importados</strong> (${data.approved} aptos / ${data.rejected} filtrados). <br><a href="${targetUrl}" target="_blank" style="color:#264636;font-weight:700;text-decoration:underline;">Abrir Umbral ↗</a>`;
       }
-      if (btn) {
-        btn.textContent = "✓ SINCRONIZADO CON ÉXITO";
-      }
+      if (btn) btn.textContent = "✓ SINCRONIZADO CON ÉXITO";
     } catch (err) {
-      console.error("[UMBRAL BRIDGE] Error enviando pisos:", err);
+      console.warn("[UMBRAL BRIDGE] Error conectando:", err);
       if (msg) {
         msg.style.display = "block";
         msg.style.background = "#FBEBEB";
         msg.style.color = "#9E2A2B";
         msg.style.borderLeftColor = "#9E2A2B";
-        msg.innerHTML = `✕ Error al conectar con ${targetUrl}. Asegúrate de que el servidor esté encendido.`;
+        msg.innerHTML = `✕ No se pudo conectar con <code>${targetUrl}</code>. ¿Está encendido el servidor?`;
       }
-      if (btn) {
-        btn.textContent = "✕ REINTENTAR SINCRONIZACIÓN";
-      }
+      if (btn) btn.textContent = "✕ REINTENTAR SINCRONIZACIÓN";
     } finally {
       if (btn) btn.disabled = false;
     }
   }
 
-  function injectHUD() {
-    if (document.getElementById("umbral-bridge-hud")) return;
+  function injectIsolatedHUD() {
+    if (document.getElementById("umbral-bridge-host")) return;
+    if (!document.body) return;
 
-    const hud = document.createElement("div");
-    hud.id = "umbral-bridge-hud";
-    hud.innerHTML = `
-      <div class="umbral-hud-header" id="umbral-hud-header">
-        <span><span class="dot"></span>UMBRAL BRIDGE</span>
-        <button class="umbral-hud-btn-toggle" id="umbral-hud-toggle" title="Minimizar">_</button>
-      </div>
-      <div class="umbral-hud-body">
-        <div class="umbral-hud-counter-row">
-          <div>
-            <div class="umbral-hud-counter" id="umbral-hud-counter">0</div>
-            <div class="umbral-hud-label">Pisos capturados en pantalla</div>
-          </div>
-          <span style="font-size:10px;font-family:monospace;color:#264636;background:#E6EFEA;padding:2px 6px;">${getPortalType().toUpperCase()}</span>
+    // Usar Shadow DOM para aislamiento 100% total frente a Idealista y DataDome
+    const host = document.createElement("div");
+    host.id = "umbral-bridge-host";
+    host.style.all = "initial"; // Reset total de estilos
+    shadowRoot = host.attachShadow({ mode: "open" });
+
+    const styles = `
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      #umbral-bridge-hud {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        z-index: 2147483647;
+        width: 310px;
+        background: #F3EFE6;
+        border: 2px solid #181614;
+        box-shadow: 6px 6px 0px #181614;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "JetBrains Mono", monospace;
+        color: #181614;
+        line-height: 1.35;
+        user-select: none;
+      }
+      .umbral-hud-header {
+        background: #181614;
+        color: #F3EFE6;
+        padding: 8px 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+      .dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        background: #C2E24E;
+        border-radius: 50%;
+        margin-right: 6px;
+        box-shadow: 0 0 6px #C2E24E;
+      }
+      .umbral-hud-body {
+        padding: 12px 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 9px;
+      }
+      .umbral-hud-counter-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        border-bottom: 1px solid rgba(24, 22, 20, 0.2);
+        padding-bottom: 6px;
+      }
+      .umbral-hud-counter {
+        font-size: 22px;
+        font-weight: 800;
+        color: #B84A32;
+        font-family: Georgia, serif;
+      }
+      .umbral-hud-action-btn {
+        background: #B84A32;
+        color: #fff;
+        border: 1.5px solid #181614;
+        padding: 9px 12px;
+        font-size: 11.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        cursor: pointer;
+        box-shadow: 2px 2px 0 #181614;
+        width: 100%;
+        transition: transform 0.1s ease;
+      }
+      .umbral-hud-action-btn:hover {
+        background: #181614;
+        transform: translate(-1px, -1px);
+      }
+      .umbral-hud-action-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+      }
+      .umbral-hud-options {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        font-size: 11px;
+      }
+      .umbral-hud-options label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+      }
+      .umbral-hud-url-input {
+        background: #fff;
+        border: 1px solid #181614;
+        padding: 4px 6px;
+        font-size: 10.5px;
+        font-family: monospace;
+        width: 100%;
+      }
+      .umbral-hud-status-msg {
+        font-size: 10.5px;
+        padding: 6px 8px;
+        border-left: 3px solid #264636;
+        display: none;
+      }
+    `;
+
+    shadowRoot.innerHTML = `
+      <style>${styles}</style>
+      <div id="umbral-bridge-hud">
+        <div class="umbral-hud-header" id="umbral-hud-header">
+          <span><span class="dot"></span>UMBRAL BRIDGE</span>
+          <span style="font-size:10px;color:#C2E24E;font-family:monospace;">ACTIVO</span>
         </div>
+        <div class="umbral-hud-body" id="umbral-hud-body">
+          <div class="umbral-hud-counter-row">
+            <div>
+              <div class="umbral-hud-counter" id="umbral-hud-counter">0</div>
+              <div style="font-size:10px;text-transform:uppercase;color:#666;">Pisos capturados</div>
+            </div>
+            <span style="font-size:9.5px;background:#C2E24E;color:#181614;font-weight:700;padding:2px 5px;">${getPortalType().toUpperCase()}</span>
+          </div>
 
-        <button class="umbral-hud-action-btn" id="umbral-hud-sync-btn">
-          ⚡ SINCRONIZAR CON MI OBSERVATORIO
-        </button>
+          <button class="umbral-hud-action-btn" id="umbral-hud-sync-btn">
+            ⚡ SINCRONIZAR CON MI OBSERVATORIO
+          </button>
 
-        <div id="umbral-hud-msg" class="umbral-hud-status-msg"></div>
+          <div id="umbral-hud-msg" class="umbral-hud-status-msg"></div>
 
-        <div class="umbral-hud-options">
-          <label>
-            <input type="checkbox" id="umbral-hud-chk-autosync" ${autoSync ? "checked" : ""}>
-            <span>Auto-enviar al hacer scroll</span>
-          </label>
-          <div>
-            <span style="font-size:9.5px;text-transform:uppercase;color:#777;font-weight:600;">Destino (Local o Vercel):</span>
-            <input type="text" id="umbral-hud-backend-url" class="umbral-hud-url-input" value="${defaultBackend}">
+          <div class="umbral-hud-options">
+            <label>
+              <input type="checkbox" id="umbral-hud-chk-autosync" ${autoSync ? "checked" : ""}>
+              <span>Auto-enviar al hacer scroll</span>
+            </label>
+            <div>
+              <span style="font-size:9px;text-transform:uppercase;color:#777;font-weight:600;">Destino (Local o Vercel):</span>
+              <input type="text" id="umbral-hud-backend-url" class="umbral-hud-url-input" value="${defaultBackend}">
+            </div>
           </div>
         </div>
       </div>
     `;
 
-    document.body.appendChild(hud);
+    document.body.appendChild(host);
 
-    // Bind events
-    document.getElementById("umbral-hud-sync-btn")?.addEventListener("click", sendListingsToUmbral);
+    shadowRoot.getElementById("umbral-hud-sync-btn")?.addEventListener("click", sendListingsToUmbral);
 
-    document.getElementById("umbral-hud-chk-autosync")?.addEventListener("change", (e) => {
+    shadowRoot.getElementById("umbral-hud-chk-autosync")?.addEventListener("change", (e) => {
       autoSync = e.target.checked;
       localStorage.setItem(STORAGE_KEY_AUTOSYNC, autoSync ? "true" : "false");
     });
 
-    document.getElementById("umbral-hud-backend-url")?.addEventListener("change", (e) => {
+    shadowRoot.getElementById("umbral-hud-backend-url")?.addEventListener("change", (e) => {
       defaultBackend = e.target.value.trim();
       localStorage.setItem(STORAGE_KEY_URL, defaultBackend);
     });
 
-    document.getElementById("umbral-hud-header")?.addEventListener("click", () => {
-      hud.classList.toggle("minimized");
+    shadowRoot.getElementById("umbral-hud-header")?.addEventListener("click", () => {
+      const b = shadowRoot.getElementById("umbral-hud-body");
+      if (b) b.style.display = b.style.display === "none" ? "flex" : "none";
     });
   }
 
   function updateHUD() {
-    const counterEl = document.getElementById("umbral-hud-counter");
+    if (!shadowRoot) return;
+    const counterEl = shadowRoot.getElementById("umbral-hud-counter");
     if (counterEl) {
       counterEl.textContent = capturedListings.size;
     }
   }
 
-  // Initialize
-  window.addEventListener("DOMContentLoaded", () => {
-    injectHUD();
+  // Ejecución segura y no bloqueante
+  function init() {
+    injectIsolatedHUD();
     scanCurrentPage();
-  });
 
-  if (document.readyState === "complete" || document.readyState === "interactive") {
-    injectHUD();
-    scanCurrentPage();
+    // Escuchar scroll de forma ligera y pasiva
+    let scrollWait = false;
+    window.addEventListener(
+      "scroll",
+      () => {
+        if (!scrollWait) {
+          scrollWait = true;
+          setTimeout(() => {
+            scrollWait = false;
+            scanCurrentPage();
+          }, 600);
+        }
+      },
+      { passive: true }
+    );
+
+    // Chequeo periódico suave (cada 3.5 segundos) solo si hay nuevos elementos
+    setInterval(() => {
+      const currentCardsCount = document.querySelectorAll("article.item, article[data-adid]").length;
+      if (currentCardsCount > 0 && currentCardsCount !== lastCountScanned) {
+        scanCurrentPage();
+      }
+    }, 3500);
   }
 
-  // Monitor dynamic scroll / pagination on Idealista
-  let scrollTimeout = null;
-  window.addEventListener("scroll", () => {
-    if (scrollTimeout) clearTimeout(scrollTimeout);
-    scrollTimeout = setTimeout(scanCurrentPage, 400);
-  });
+  // Responder a mensajes desde el popup de la extensión de Chrome
+  if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.onMessage) {
+    chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
+      if (req.action === "getStatus") {
+        scanCurrentPage();
+        sendResponse({
+          count: capturedListings.size,
+          portal: getPortalType(),
+          backendUrl: defaultBackend,
+          autoSync: autoSync,
+        });
+      } else if (req.action === "syncNow") {
+        sendListingsToUmbral().then(() => {
+          sendResponse({ ok: true, count: capturedListings.size });
+        });
+        return true;
+      }
+    });
+  }
 
-  // Observe DOM changes (e.g. Next Page / AJAX listings injection)
-  const observer = new MutationObserver(() => {
-    scanCurrentPage();
-  });
-  observer.observe(document.body, { childList: true, subtree: true });
+  // Cargar cuando la página ya esté ociosa
+  if (document.readyState === "complete") {
+    setTimeout(init, 300);
+  } else {
+    window.addEventListener("load", () => setTimeout(init, 300));
+  }
 })();

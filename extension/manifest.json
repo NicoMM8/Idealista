@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "UMBRAL Bridge · Conector Idealista & Multi-Portal",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Captura y envía viviendas de Idealista, Yaencontre e Indomio directamente a tu observatorio UMBRAL mientras navegas.",
   "permissions": ["activeTab"],
   "host_permissions": [
@@ -13,6 +13,10 @@
     "http://127.0.0.1:8050/*",
     "https://*.vercel.app/*"
   ],
+  "action": {
+    "default_title": "UMBRAL Bridge · Panel Rápido",
+    "default_popup": "popup.html"
+  },
   "content_scripts": [
     {
       "matches": [
@@ -22,7 +26,7 @@
         "*://*.tucasa.com/*"
       ],
       "js": ["content.js"],
-      "css": ["styles.css"]
+      "run_at": "document_idle"
     }
   ]
 }

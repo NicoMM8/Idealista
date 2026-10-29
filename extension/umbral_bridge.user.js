@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         UMBRAL Bridge · Conector Idealista & Multi-Portal
 // @namespace    https://github.com/NicoMM8/Idealista
-// @version      1.0.0
+// @version      2.0.0
 // @description  Captura viviendas en Idealista, Yaencontre e Indomio mientras navegas y las envía a tu observatorio UMBRAL para filtrarlas y verlas en el mapa.
 // @author       UMBRAL
 // @match        *://*.idealista.com/*
@@ -16,6 +16,8 @@
 
 (function () {
   'use strict';
+  if (window.__UMBRAL_BRIDGE_INITIALIZED__) return;
+  window.__UMBRAL_BRIDGE_INITIALIZED__ = true;
 
   const STORAGE_KEY_URL = "umbral_bridge_backend_url";
   const STORAGE_KEY_AUTOSYNC = "umbral_bridge_autosync";
@@ -24,7 +26,9 @@
   let autoSync = localStorage.getItem(STORAGE_KEY_AUTOSYNC) === "true";
 
   const capturedListings = new Map();
-  let syncTimeout = null;
+  let lastCountScanned = 0;
+  let syncDebounceTimer = null;
+  let shadowRoot = null;
 
   function detectCity() {
     const title = document.title || "";
@@ -50,6 +54,7 @@
   function parseIdealistaCards() {
     const city = detectCity();
     const articles = document.querySelectorAll("article.item, article[data-adid]");
+    if (articles.length === 0) return;
 
     articles.forEach((art) => {
       const adId = art.getAttribute("data-adid") || art.getAttribute("id") || "";
@@ -127,18 +132,20 @@
     parseIdealistaCards();
     updateHUD();
 
-    if (autoSync) {
-      if (syncTimeout) clearTimeout(syncTimeout);
-      syncTimeout = setTimeout(sendListingsToUmbral, 1500);
+    if (autoSync && capturedListings.size > lastCountScanned) {
+      lastCountScanned = capturedListings.size;
+      if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
+      syncDebounceTimer = setTimeout(sendListingsToUmbral, 1800);
     }
   }
 
   function sendListingsToUmbral() {
     if (capturedListings.size === 0) return;
+    if (!shadowRoot) return;
 
-    const btn = document.getElementById("umbral-hud-sync-btn");
-    const msg = document.getElementById("umbral-hud-msg");
-    const urlInput = document.getElementById("umbral-hud-backend-url");
+    const btn = shadowRoot.getElementById("umbral-hud-sync-btn");
+    const msg = shadowRoot.getElementById("umbral-hud-msg");
+    const urlInput = shadowRoot.getElementById("umbral-hud-backend-url");
     const targetUrl = (urlInput ? urlInput.value.trim() : defaultBackend) || "http://localhost:8050";
 
     if (btn) {
@@ -161,7 +168,7 @@
           msg.style.display = "block";
           msg.style.background = "#E6EFEA";
           msg.style.color = "#264636";
-          msg.innerHTML = `✓ <strong>${data.imported} pisos importados</strong> (${data.approved} aptos en mapa / ${data.rejected} filtrados). <br><a href="${targetUrl}" target="_blank" style="color:#264636;font-weight:700;text-decoration:underline;">Abrir Umbral ↗</a>`;
+          msg.innerHTML = `✓ <strong>${data.imported} pisos importados</strong> (${data.approved} aptos / ${data.rejected} filtrados). <br><a href="${targetUrl}" target="_blank" style="color:#264636;font-weight:700;text-decoration:underline;">Abrir Umbral ↗</a>`;
         }
         if (btn) btn.textContent = "✓ SINCRONIZADO CON ÉXITO";
       })
@@ -179,107 +186,125 @@
       });
   }
 
-  function injectHUD() {
-    if (document.getElementById("umbral-bridge-hud")) return;
+  function injectIsolatedHUD() {
+    if (document.getElementById("umbral-bridge-host")) return;
+    if (!document.body) return;
 
-    // Inject CSS styles
-    const styleEl = document.createElement("style");
-    styleEl.textContent = `
+    const host = document.createElement("div");
+    host.id = "umbral-bridge-host";
+    host.style.all = "initial";
+    shadowRoot = host.attachShadow({ mode: "open" });
+
+    const styles = `
+      * { box-sizing: border-box; margin: 0; padding: 0; }
       #umbral-bridge-hud {
         position: fixed; bottom: 24px; right: 24px; z-index: 2147483647; width: 310px;
         background: #F3EFE6; border: 2px solid #181614; box-shadow: 6px 6px 0px #181614;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace; color: #181614; line-height: 1.35;
       }
       .umbral-hud-header { background: #181614; color: #F3EFE6; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; font-weight: 700; text-transform: uppercase; cursor: pointer; }
-      .umbral-hud-header .dot { display: inline-block; width: 8px; height: 8px; background: #C2E24E; border-radius: 50%; margin-right: 6px; box-shadow: 0 0 6px #C2E24E; }
+      .dot { display: inline-block; width: 8px; height: 8px; background: #C2E24E; border-radius: 50%; margin-right: 6px; box-shadow: 0 0 6px #C2E24E; }
       .umbral-hud-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 9px; }
       .umbral-hud-counter-row { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid rgba(24,22,20,0.2); padding-bottom: 6px; }
       .umbral-hud-counter { font-size: 22px; font-weight: 800; color: #B84A32; font-family: Georgia, serif; }
       .umbral-hud-action-btn { background: #B84A32; color: #fff; border: 1.5px solid #181614; padding: 9px 12px; font-size: 11.5px; font-weight: 700; text-transform: uppercase; cursor: pointer; box-shadow: 2px 2px 0 #181614; width: 100%; }
       .umbral-hud-action-btn:hover { background: #181614; }
       .umbral-hud-options { display: flex; flex-direction: column; gap: 5px; font-size: 11px; }
-      .umbral-hud-url-input { background: #fff; border: 1px solid #181614; padding: 4px 6px; font-size: 10.5px; font-family: monospace; width: 100%; box-sizing: border-box; }
+      .umbral-hud-url-input { background: #fff; border: 1px solid #181614; padding: 4px 6px; font-size: 10.5px; font-family: monospace; width: 100%; }
       .umbral-hud-status-msg { font-size: 10.5px; padding: 6px 8px; border-left: 3px solid #264636; display: none; }
     `;
-    document.head.appendChild(styleEl);
 
-    const hud = document.createElement("div");
-    hud.id = "umbral-bridge-hud";
-    hud.innerHTML = `
-      <div class="umbral-hud-header" id="umbral-hud-header">
-        <span><span class="dot"></span>UMBRAL BRIDGE</span>
-        <span style="font-size:10px;color:#C2E24E;">ACTIVO</span>
-      </div>
-      <div class="umbral-hud-body" id="umbral-hud-body">
-        <div class="umbral-hud-counter-row">
-          <div>
-            <div class="umbral-hud-counter" id="umbral-hud-counter">0</div>
-            <div style="font-size:10px;text-transform:uppercase;color:#666;">Pisos capturados en pantalla</div>
-          </div>
-          <span style="font-size:9.5px;background:#C2E24E;color:#181614;font-weight:700;padding:2px 5px;">IDEALISTA</span>
+    shadowRoot.innerHTML = `
+      <style>${styles}</style>
+      <div id="umbral-bridge-hud">
+        <div class="umbral-hud-header" id="umbral-hud-header">
+          <span><span class="dot"></span>UMBRAL BRIDGE</span>
+          <span style="font-size:10px;color:#C2E24E;">ACTIVO</span>
         </div>
-        <button class="umbral-hud-action-btn" id="umbral-hud-sync-btn">
-          ⚡ ENVIAR A MI OBSERVATORIO
-        </button>
-        <div id="umbral-hud-msg" class="umbral-hud-status-msg"></div>
-        <div class="umbral-hud-options">
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
-            <input type="checkbox" id="umbral-hud-chk-autosync" ${autoSync ? "checked" : ""}>
-            <span>Auto-enviar al hacer scroll</span>
-          </label>
-          <div>
-            <span style="font-size:9px;text-transform:uppercase;color:#777;font-weight:600;">Destino (Local o Vercel):</span>
-            <input type="text" id="umbral-hud-backend-url" class="umbral-hud-url-input" value="${defaultBackend}">
+        <div class="umbral-hud-body" id="umbral-hud-body">
+          <div class="umbral-hud-counter-row">
+            <div>
+              <div class="umbral-hud-counter" id="umbral-hud-counter">0</div>
+              <div style="font-size:10px;text-transform:uppercase;color:#666;">Pisos capturados</div>
+            </div>
+            <span style="font-size:9.5px;background:#C2E24E;color:#181614;font-weight:700;padding:2px 5px;">IDEALISTA</span>
+          </div>
+          <button class="umbral-hud-action-btn" id="umbral-hud-sync-btn">
+            ⚡ SINCRONIZAR CON MI OBSERVATORIO
+          </button>
+          <div id="umbral-hud-msg" class="umbral-hud-status-msg"></div>
+          <div class="umbral-hud-options">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+              <input type="checkbox" id="umbral-hud-chk-autosync" ${autoSync ? "checked" : ""}>
+              <span>Auto-enviar al hacer scroll</span>
+            </label>
+            <div>
+              <span style="font-size:9px;text-transform:uppercase;color:#777;font-weight:600;">Destino (Local o Vercel):</span>
+              <input type="text" id="umbral-hud-backend-url" class="umbral-hud-url-input" value="${defaultBackend}">
+            </div>
           </div>
         </div>
       </div>
     `;
 
-    document.body.appendChild(hud);
+    document.body.appendChild(host);
 
-    document.getElementById("umbral-hud-sync-btn")?.addEventListener("click", sendListingsToUmbral);
+    shadowRoot.getElementById("umbral-hud-sync-btn")?.addEventListener("click", sendListingsToUmbral);
 
-    document.getElementById("umbral-hud-chk-autosync")?.addEventListener("change", (e) => {
+    shadowRoot.getElementById("umbral-hud-chk-autosync")?.addEventListener("change", (e) => {
       autoSync = e.target.checked;
       localStorage.setItem(STORAGE_KEY_AUTOSYNC, autoSync ? "true" : "false");
     });
 
-    document.getElementById("umbral-hud-backend-url")?.addEventListener("change", (e) => {
+    shadowRoot.getElementById("umbral-hud-backend-url")?.addEventListener("change", (e) => {
       defaultBackend = e.target.value.trim();
       localStorage.setItem(STORAGE_KEY_URL, defaultBackend);
     });
 
-    document.getElementById("umbral-hud-header")?.addEventListener("click", () => {
-      const b = document.getElementById("umbral-hud-body");
+    shadowRoot.getElementById("umbral-hud-header")?.addEventListener("click", () => {
+      const b = shadowRoot.getElementById("umbral-hud-body");
       if (b) b.style.display = b.style.display === "none" ? "flex" : "none";
     });
   }
 
   function updateHUD() {
-    const counterEl = document.getElementById("umbral-hud-counter");
+    if (!shadowRoot) return;
+    const counterEl = shadowRoot.getElementById("umbral-hud-counter");
     if (counterEl) {
       counterEl.textContent = capturedListings.size;
     }
   }
 
-  window.addEventListener("DOMContentLoaded", () => {
-    injectHUD();
+  function init() {
+    injectIsolatedHUD();
     scanCurrentPage();
-  });
 
-  if (document.readyState === "complete" || document.readyState === "interactive") {
-    injectHUD();
-    scanCurrentPage();
+    let scrollWait = false;
+    window.addEventListener(
+      "scroll",
+      () => {
+        if (!scrollWait) {
+          scrollWait = true;
+          setTimeout(() => {
+            scrollWait = false;
+            scanCurrentPage();
+          }, 600);
+        }
+      },
+      { passive: true }
+    );
+
+    setInterval(() => {
+      const currentCardsCount = document.querySelectorAll("article.item, article[data-adid]").length;
+      if (currentCardsCount > 0 && currentCardsCount !== lastCountScanned) {
+        scanCurrentPage();
+      }
+    }, 3500);
   }
 
-  let scrollTimeout = null;
-  window.addEventListener("scroll", () => {
-    if (scrollTimeout) clearTimeout(scrollTimeout);
-    scrollTimeout = setTimeout(scanCurrentPage, 400);
-  });
-
-  const observer = new MutationObserver(() => {
-    scanCurrentPage();
-  });
-  observer.observe(document.body, { childList: true, subtree: true });
+  if (document.readyState === "complete") {
+    setTimeout(init, 300);
+  } else {
+    window.addEventListener("load", () => setTimeout(init, 300));
+  }
 })();
