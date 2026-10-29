@@ -412,14 +412,17 @@ def get_saved_api_keys() -> Dict[str, str]:
 
 
 def save_api_keys(idealista_key: str, idealista_secret: str) -> None:
-    with open(API_KEYS_FILE, "w", encoding="utf-8") as f:
-        json.dump(
-            {
-                "idealista_key": idealista_key.strip(),
-                "idealista_secret": idealista_secret.strip(),
-            },
-            f,
-        )
+    try:
+        with open(API_KEYS_FILE, "w", encoding="utf-8") as f:
+            json.dump(
+                {
+                    "idealista_key": idealista_key.strip(),
+                    "idealista_secret": idealista_secret.strip(),
+                },
+                f,
+            )
+    except Exception:
+        pass
 
 
 # Load cache on module import

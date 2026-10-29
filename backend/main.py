@@ -192,12 +192,19 @@ async def api_audit_custom(req: CustomAuditRequest):
 
 
 FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
-if not os.path.exists(FRONTEND_DIR):
-    os.makedirs(FRONTEND_DIR, exist_ok=True)
+try:
+    if not os.path.exists(FRONTEND_DIR):
+        os.makedirs(FRONTEND_DIR, exist_ok=True)
+except Exception:
+    pass
 
-app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
+if os.path.exists(FRONTEND_DIR):
+    app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
 
 
 @app.get("/")
 async def serve_index():
-    return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
+    idx_path = os.path.join(FRONTEND_DIR, "index.html")
+    if os.path.exists(idx_path):
+        return FileResponse(idx_path)
+    return {"status": "ok", "app": "UMBRAL"}
