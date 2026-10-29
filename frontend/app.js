@@ -542,6 +542,35 @@ function bindUIEvents() {
     document.getElementById("apikeys-backdrop")?.classList.remove("open");
   });
   document.getElementById("btn-save-apikeys")?.addEventListener("click", saveOptionalApiKeys);
+  // Mobile Floating Dock: List vs Map view switcher
+  const dockListBtn = document.getElementById("dock-btn-list");
+  const dockMapBtn = document.getElementById("dock-btn-map");
+  const workspaceSplit = document.querySelector(".workspace-split");
+
+  function switchMobileView(mode) {
+    if (!workspaceSplit) return;
+    if (mode === "map") {
+      workspaceSplit.classList.add("show-map-only");
+      workspaceSplit.classList.remove("show-list-only");
+      dockMapBtn?.classList.add("active");
+      dockListBtn?.classList.remove("active");
+      if (state.map) {
+        setTimeout(() => {
+          state.map.invalidateSize();
+        }, 150);
+      }
+      document.querySelector(".map-column")?.scrollIntoView({ behavior: "smooth" });
+    } else {
+      workspaceSplit.classList.add("show-list-only");
+      workspaceSplit.classList.remove("show-map-only");
+      dockListBtn?.classList.add("active");
+      dockMapBtn?.classList.remove("active");
+      document.querySelector(".catalog-column")?.scrollIntoView({ behavior: "smooth" });
+    }
+  }
+
+  dockListBtn?.addEventListener("click", () => switchMobileView("list"));
+  dockMapBtn?.addEventListener("click", () => switchMobileView("map"));
 }
 
 const QUICK_CITY_COORDS = {
@@ -761,6 +790,7 @@ function refreshViewportFilteredUI() {
   // Update top counters
   setText("stat-approved-count", spatialApproved.length);
   setText("stat-rejected-count", spatialRejected.length);
+  setText("mobile-count-dock", spatialApproved.length);
 
   if (spatialApproved.length > 0) {
     const avgP = Math.round(
