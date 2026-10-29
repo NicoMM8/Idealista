@@ -854,3 +854,82 @@ async def inspect_custom_url_or_text(
         "features": [],
     }
     return evaluate_listing(listing_stub, max_price=max_price)
+
+
+def import_bridge_listings(raw_listings: List[Dict[str, Any]]) -> Dict[str, Any]:
+    load_national_cache()
+    imported_count = 0
+    approved_count = 0
+    rejected_count = 0
+
+    for raw in raw_listings:
+        ad_id = str(raw.get("id") or "").strip()
+        if not ad_id:
+            ad_id = f"id-{abs(hash(raw.get('url', '')))}"
+        if not ad_id.startswith("id-"):
+            ad_id = f"id-{ad_id}"
+
+        portal_id = raw.get("portal_id") or "idealista"
+        city_name = raw.get("city") or "Valencia"
+        neighborhood = raw.get("neighborhood") or city_name
+
+        lat = raw.get("lat")
+        lon = raw.get("lon")
+        if not lat or not lon:
+            c_key = strip_accents(city_name).strip()
+            gaz = SPANISH_CITIES_GAZETTEER.get(c_key) or SPANISH_CITIES_GAZETTEER.get("valencia")
+            base_lat = gaz["lat"]
+            base_lon = gaz["lon"]
+            jitter_lat = (abs(hash(ad_id)) % 800 - 400) * 0.000035
+            jitter_lon = (abs(hash(ad_id * 2)) % 800 - 400) * 0.000035
+            lat = round(base_lat + jitter_lat, 5)
+            lon = round(base_lon + jitter_lon, 5)
+
+        default_img = "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=80"
+        imgs = raw.get("images") or []
+        if not imgs:
+            imgs = [default_img]
+
+        item = {
+            "id": ad_id,
+            "ref_code": raw.get("ref_code") or f"ID-{ad_id[-6:]}",
+            "portal_id": portal_id,
+            "portal_name": "Idealista" if portal_id == "idealista" else portal_id.capitalize(),
+            "portal_domain": "idealista.com" if portal_id == "idealista" else f"{portal_id}.com",
+            "portal_color": "#C2E24E" if portal_id == "idealista" else "#181614",
+            "portal_tier": "Extracción Asistida por Navegador (Chrome Bridge)",
+            "title": raw.get("title") or "Vivienda en venta",
+            "description": raw.get("description") or "",
+            "price": int(raw.get("price") or 0),
+            "sqm": int(raw.get("sqm") or 65),
+            "rooms": int(raw.get("rooms") or 2),
+            "baths": int(raw.get("baths") or 1),
+            "floor": raw.get("floor"),
+            "has_elevator": raw.get("has_elevator"),
+            "neighborhood": neighborhood,
+            "city": city_name,
+            "province": raw.get("province") or city_name,
+            "address": raw.get("address") or f"{raw.get('title')}, {neighborhood}",
+            "lat": float(lat),
+            "lon": float(lon),
+            "url": raw.get("url") or "#",
+            "images": imgs,
+            "features": raw.get("features") or [],
+        }
+
+        evaluated = evaluate_listing(item)
+        _NATIONAL_LISTINGS_BY_ID[ad_id] = evaluated
+        imported_count += 1
+        if evaluated["filter_audit"]["passed"]:
+            approved_count += 1
+        else:
+            rejected_count += 1
+
+    save_national_cache()
+    return {
+        "ok": True,
+        "imported": imported_count,
+        "approved": approved_count,
+        "rejected": rejected_count,
+        "total_cached": len(_NATIONAL_LISTINGS_BY_ID),
+    }

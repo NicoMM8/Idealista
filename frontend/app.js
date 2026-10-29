@@ -523,6 +523,17 @@ function bindUIEvents() {
   });
   document.getElementById("btn-run-live-audit")?.addEventListener("click", runCustomLiveAudit);
 
+  // Bridge modal
+  document.getElementById("btn-open-bridge")?.addEventListener("click", () => {
+    document.getElementById("bridge-backdrop")?.classList.add("open");
+  });
+  document.getElementById("btn-close-bridge")?.addEventListener("click", () => {
+    document.getElementById("bridge-backdrop")?.classList.remove("open");
+  });
+  document.getElementById("bridge-backdrop")?.addEventListener("click", (e) => {
+    if (e.target.id === "bridge-backdrop") document.getElementById("bridge-backdrop")?.classList.remove("open");
+  });
+
   // API Keys modal
   document.getElementById("btn-open-apikeys")?.addEventListener("click", () => {
     document.getElementById("apikeys-backdrop")?.classList.add("open");

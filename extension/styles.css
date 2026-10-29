@@ -1,0 +1,147 @@
+/* ==========================================================================
+   UMBRAL BRIDGE · FLOATING EXTENSION HUD
+   ========================================================================== */
+#umbral-bridge-hud {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 2147483647;
+  width: 320px;
+  background: #F3EFE6;
+  border: 2px solid #181614;
+  box-shadow: 6px 6px 0px #181614;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "JetBrains Mono", monospace;
+  color: #181614;
+  line-height: 1.35;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  user-select: none;
+}
+
+#umbral-bridge-hud.minimized .umbral-hud-body {
+  display: none;
+}
+
+.umbral-hud-header {
+  background: #181614;
+  color: #F3EFE6;
+  padding: 8px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.umbral-hud-header .dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: #C2E24E;
+  border-radius: 50%;
+  margin-right: 6px;
+  box-shadow: 0 0 6px #C2E24E;
+}
+
+.umbral-hud-btn-toggle {
+  background: transparent;
+  border: none;
+  color: #F3EFE6;
+  font-family: monospace;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.umbral-hud-body {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.umbral-hud-counter-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 1px solid rgba(24, 22, 20, 0.2);
+  padding-bottom: 6px;
+}
+
+.umbral-hud-counter {
+  font-size: 20px;
+  font-weight: 800;
+  color: #B84A32;
+  font-family: Georgia, serif;
+}
+
+.umbral-hud-label {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  color: #555;
+  font-weight: 600;
+}
+
+.umbral-hud-action-btn {
+  background: #B84A32;
+  color: #fff;
+  border: 1.5px solid #181614;
+  padding: 9px 12px;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  box-shadow: 2px 2px 0 #181614;
+  transition: all 0.15s ease;
+  width: 100%;
+}
+
+.umbral-hud-action-btn:hover {
+  background: #181614;
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0 #B84A32;
+}
+
+.umbral-hud-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.umbral-hud-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.umbral-hud-options label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.umbral-hud-url-input {
+  background: #fff;
+  border: 1px solid #181614;
+  padding: 4px 6px;
+  font-size: 10.5px;
+  font-family: monospace;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.umbral-hud-status-msg {
+  font-size: 11px;
+  font-family: monospace;
+  padding: 6px 8px;
+  background: #E6EFEA;
+  border-left: 3px solid #264636;
+  color: #264636;
+  display: none;
+}

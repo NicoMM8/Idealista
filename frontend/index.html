@@ -33,6 +33,7 @@
     </div>
     <div class="folio-right">
       <span>MEDIA ZONA: <strong id="stat-avg-price">112.000 €</strong> (<span id="stat-avg-sqm">1.540 €/m²</span>)</span>
+      <button class="folio-btn" id="btn-open-bridge" style="background:var(--terracotta);color:#fff;">🔌 CONECTOR IDEALISTA (OPCIÓN B)</button>
       <button class="folio-btn" id="btn-open-apikeys">🔑 API KEYS (OPCIONAL)</button>
       <button class="folio-btn" id="btn-open-auditor">AUDITOR DE ENLACE / TEXTO ↗</button>
     </div>
@@ -434,6 +435,38 @@
           GUARDAR CREDENCIALES OPCIONALES
         </button>
         <div id="apikeys-status-msg" style="font-family:var(--font-mono);font-size:11px;color:var(--moss);"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================================
+       MODAL 4: CONECTOR DE NAVEGADOR UMBRAL BRIDGE (OPCIÓN B)
+       ==================================================================== -->
+  <div class="modal-backdrop" id="bridge-backdrop">
+    <div class="dossier-modal" style="max-width:680px;">
+      <div class="dossier-modal-header">
+        <span>🔌 UMBRAL BRIDGE · CAPTURADOR DE IDEALISTA & MULTI-PORTAL</span>
+        <button class="btn-close-modal" id="btn-close-bridge">CERRAR</button>
+      </div>
+      <div style="padding:24px;display:flex;flex-direction:column;gap:14px;">
+        <div style="background:var(--moss-soft);border-left:3px solid var(--moss);padding:12px;font-size:13.5px;">
+          <strong>¿CÓMO FUNCIONA LA OPCIÓN B?</strong><br />
+          DataDome bloquea los servidores, pero <strong>nunca te bloquea a ti mientras navegas</strong>. Con esta extensión, mientras haces scroll por Idealista, Yaencontre o Indomio, los anuncios se van guardando y se envían a tu web en directo. <strong>¡Aparecen en este mapa y catálogo al instante!</strong>
+        </div>
+
+        <h3 style="font-family:var(--font-serif);font-size:20px;margin-top:6px;">Instalación en 15 segundos:</h3>
+
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:13.5px;color:var(--ink-secondary);">
+          <div><strong>Paso 1:</strong> Abre una pestaña en tu navegador y ve a <code>chrome://extensions</code> (o <code>edge://extensions</code>).</div>
+          <div><strong>Paso 2:</strong> Activa el interruptor <strong>"Modo de desarrollador"</strong> (esquina superior derecha).</div>
+          <div><strong>Paso 3:</strong> Pulsa el botón <strong>"Cargar descomprimida"</strong> y selecciona la carpeta <code>extension</code> dentro de este proyecto: <code>e:\Proyectos\Idealista\extension</code>.</div>
+          <div><strong>Paso 4:</strong> Entra en cualquier búsqueda de Idealista. Verás aparecer un recuadro flotante abajo a la derecha: <strong>«UMBRAL BRIDGE»</strong>.</div>
+          <div><strong>Paso 5:</strong> Haz scroll normalmente. La extensión detectará los pisos y al pulsar <em>"ENVIAR A MI OBSERVATORIO"</em> (o en modo automático) <strong>¡se volcarán aquí en tu mapa interactivo con sus fotos y datos!</strong></div>
+        </div>
+
+        <div style="border-top:1px dashed rgba(24,22,20,0.2);padding-top:12px;font-size:13px;color:var(--ink-muted);">
+          <em>Alternativa Tampermonkey:</em> Si usas la extensión Tampermonkey, puedes instalar directamente el script <code>extension/umbral_bridge.user.js</code> con un solo clic.
+        </div>
       </div>
     </div>
   </div>

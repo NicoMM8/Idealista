@@ -1,5 +1,5 @@
 import os
-from typing import List, Optional
+from typing import List, Optional, Any
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -11,6 +11,7 @@ from backend.portals_scraper import (
     SPANISH_CITIES_GAZETTEER,
     get_saved_api_keys,
     harvest_all_spain,
+    import_bridge_listings,
     inspect_custom_url_or_text,
     load_national_cache,
     save_api_keys,
@@ -178,6 +179,36 @@ async def api_get_keys():
 async def api_save_keys(req: ApiKeysRequest):
     save_api_keys(req.idealista_key, req.idealista_secret)
     return {"ok": True, "has_idealista_key": bool(req.idealista_key and req.idealista_secret)}
+
+
+class BridgeImportItem(BaseModel):
+    id: Optional[str] = None
+    portal_id: str = "idealista"
+    title: str
+    price: int
+    sqm: Optional[int] = 65
+    rooms: Optional[int] = 2
+    baths: Optional[int] = 1
+    floor: Optional[Any] = None
+    has_elevator: Optional[bool] = None
+    url: str
+    description: Optional[str] = ""
+    images: Optional[List[str]] = None
+    city: Optional[str] = "Valencia"
+    neighborhood: Optional[str] = ""
+    lat: Optional[float] = None
+    lon: Optional[float] = None
+
+
+class BridgeImportRequest(BaseModel):
+    listings: List[BridgeImportItem]
+
+
+@app.post("/api/bridge/import")
+async def api_bridge_import(req: BridgeImportRequest):
+    raw_list = [it.model_dump() for it in req.listings]
+    res = import_bridge_listings(raw_list)
+    return res
 
 
 @app.post("/api/audit-custom")
