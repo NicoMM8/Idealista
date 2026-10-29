@@ -189,7 +189,7 @@
     const targetUrl = (urlInput ? urlInput.value.trim() : defaultBackend) || "http://localhost:8050";
 
     if (btn) {
-      btn.textContent = "⚡ ENVIANDO AL OBSERVATORIO...";
+      btn.textContent = "ENVIANDO AL OBSERVATORIO...";
       btn.disabled = true;
     }
 
@@ -362,7 +362,7 @@
           </div>
 
           <button class="umbral-hud-action-btn" id="umbral-hud-sync-btn">
-            ⚡ SINCRONIZAR CON MI OBSERVATORIO
+            SINCRONIZAR CON MI OBSERVATORIO
           </button>
 
           <div id="umbral-hud-msg" class="umbral-hud-status-msg"></div>

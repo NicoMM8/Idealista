@@ -215,7 +215,7 @@ function toggleDrawingMode() {
     state.map.dragging.disable();
     if (drawBtn) {
       drawBtn.classList.add("active-draw");
-      drawBtn.textContent = "✏️ ARRASTRA EL RATÓN EN EL MAPA PARA TRAZAR...";
+      drawBtn.textContent = "ARRASTRA EL RATÓN EN EL MAPA PARA TRAZAR...";
     }
     if (hint) {
       hint.textContent = "Mantén pulsado el clic izquierdo y rodea la zona que quieras filtrar";
@@ -225,7 +225,7 @@ function toggleDrawingMode() {
     state.map.dragging.enable();
     if (drawBtn) {
       drawBtn.classList.remove("active-draw");
-      drawBtn.textContent = "✏️ DIBUJAR ZONA A MANO ALZADA (COMO IDEALISTA)";
+      drawBtn.textContent = "DIBUJAR ZONA A MANO ALZADA (COMO IDEALISTA)";
     }
     if (mapEl) mapEl.style.cursor = "";
   }
@@ -244,7 +244,7 @@ function finishFreehandPolygon() {
   if (mapEl) mapEl.style.cursor = "";
   if (drawBtn) {
     drawBtn.classList.remove("active-draw");
-    drawBtn.textContent = "✏️ VOLVER A DIBUJAR ZONA";
+    drawBtn.textContent = "VOLVER A DIBUJAR ZONA";
   }
 
   if (state.drawLatLngs.length < 4) {
@@ -282,7 +282,7 @@ function clearDrawnPolygon() {
   const clearBtn = document.getElementById("btn-clear-polygon");
   const hint = document.getElementById("draw-status-hint");
 
-  if (drawBtn) drawBtn.textContent = "✏️ DIBUJAR ZONA A MANO ALZADA (COMO IDEALISTA)";
+  if (drawBtn) drawBtn.textContent = "DIBUJAR ZONA A MANO ALZADA (COMO IDEALISTA)";
   if (clearBtn) clearBtn.style.display = "none";
   if (hint) hint.textContent = "Amplía o aleja el mapa: la lista muestra lo que ves en pantalla";
 
@@ -495,7 +495,7 @@ function bindUIEvents() {
     state.allowOccupied = !state.allowOccupied;
     const el = e.currentTarget;
     if (state.allowOccupied) {
-      el.textContent = "⚡ Admitiendo Inmuebles sin posesión";
+      el.textContent = "Admitiendo Inmuebles sin posesión";
       el.classList.remove("inactive");
       el.style.background = "var(--terracotta)";
       el.style.color = "#fff";
@@ -601,7 +601,7 @@ async function triggerDeepScrapeInZone() {
   const hint = document.getElementById("draw-status-hint");
   const center = state.map.getCenter();
   if (btn) {
-    btn.textContent = "⚡ EXTRAYENDO PÁGINAS EN VIVO...";
+    btn.textContent = "EXTRAYENDO PÁGINAS EN VIVO...";
     btn.disabled = true;
   }
   try {
@@ -626,7 +626,7 @@ async function triggerDeepScrapeInZone() {
     console.error("Deep scrape error:", e);
   } finally {
     if (btn) {
-      btn.textContent = "⚡ EXTRAER MÁS PÁGINAS DE ESTA ZONA";
+      btn.textContent = "EXTRAER MÁS PÁGINAS DE ESTA ZONA";
       btn.disabled = false;
     }
   }
@@ -849,7 +849,7 @@ function renderPortalsMatrixForView(spatialApproved, spatialRejected) {
             ${securityLabel}
           </div>
           <div class="portal-metrics">
-            <span class="portal-launcher-tag">🛡️ DATADOME · CLIC PARA ABRIR ↗</span>
+            <span class="portal-launcher-tag">DATADOME · CLIC PARA ABRIR ↗</span>
           </div>
         </div>
       `;
@@ -911,7 +911,7 @@ function renderCardsList(list) {
       <div style="grid-column: 1 / -1; padding: 48px; border: 1.5px dashed var(--ink-primary); text-align:center;">
         <h3 style="font-family:var(--font-serif);font-size:26px;margin-bottom:8px;">No hay viviendas en este recorte exacto del mapa</h3>
         <p style="font-family:var(--font-mono);font-size:12px;color:var(--ink-muted);margin-bottom:16px;">
-          Desamplía el mapa, desplázalo a otra zona o pulsa "🇪🇸 Ver Mapa de Toda España".
+          Desamplía el mapa, desplázalo a otra zona o pulsa "Ver Mapa de Toda España".
         </p>
         <div style="display:flex;gap:10px;justify-content:center;">
           <button class="folio-btn" onclick="resetSubFilters()">MOSTRAR TODA ESPAÑA</button>
@@ -1018,7 +1018,7 @@ function buildListingCardHTML(item) {
           </div>
           ${
             audit.has_occupied_warning
-              ? `<div class="card-warning-occupied-stamp">⚠️ ACTIVO SIN POSESIÓN (OCUPADO)</div>`
+              ? `<div class="card-warning-occupied-stamp">ACTIVO SIN POSESIÓN (OCUPADO)</div>`
               : ""
           }
           ${

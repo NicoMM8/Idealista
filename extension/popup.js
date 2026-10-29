@@ -38,7 +38,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     chrome.tabs.sendMessage(tab.id, { action: "syncNow" }, (resp) => {
       syncBtn.disabled = false;
-      syncBtn.textContent = "SINCRONIZAR ⚡";
+      syncBtn.textContent = "SINCRONIZAR";
 
       if (resp && resp.ok) {
         statusMsg.style.display = "block";
